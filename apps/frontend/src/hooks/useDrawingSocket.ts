@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { socket } from "../lib/socket";
+import { socket } from "../utils/socket";
 
 export function useDrawingSocket(onReceivePoints: (data: any) => void) {
     useEffect(() => {
