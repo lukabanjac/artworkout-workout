@@ -17,8 +17,7 @@ export class DrawingGateway implements OnGatewayInit {
     private sub: Redis;
 
     afterInit() {
-        // setup Redis pub/sub
-        this.pub = new Redis(); // default: localhost:6379
+        this.pub = new Redis();
         this.sub = new Redis();
 
         this.sub.subscribe('drawing_channel', (err) => {
@@ -42,10 +41,8 @@ export class DrawingGateway implements OnGatewayInit {
     handleDrawing(@MessageBody() payload: any) {
         console.log('🖊️ Received drawing payload:', payload);
 
-        // publish to Redis for other backend instances
         this.pub.publish('drawing_channel', JSON.stringify(payload));
 
-        // echo back to connected clients
         this.server.emit('drawing:broadcast', payload);
     }
 }

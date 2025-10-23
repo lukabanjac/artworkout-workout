@@ -3,21 +3,19 @@ import { Stage, Layer, Line } from 'react-konva';
 import io from 'socket.io-client';
 import { nanoid } from 'nanoid';
 
-const socket = io('http://localhost:3000'); // your backend WS
+const socket = io('http://localhost:3000');
 
 export default function DualCanvas() {
-  const [localLines, setLocalLines] = useState<any[]>([]);
-  const [remoteLines, setRemoteLines] = useState<any[]>([]);
+  const [lines, setLines] = useState<any[]>([]);
   const [color, setColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(3);
   const isDrawing = useRef(false);
 
-  // --- handle local drawing ---
   const handleMouseDown = (e: any) => {
     isDrawing.current = true;
     const pos = e.target.getStage().getPointerPosition();
-    setLocalLines([
-      ...localLines,
+    setLines((prev) => [
+      ...prev,
       {
         id: nanoid(),
         tool: 'pencil',
@@ -32,31 +30,39 @@ export default function DualCanvas() {
     if (!isDrawing.current) return;
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
-    let lastLine = localLines[localLines.length - 1];
-    lastLine.points = lastLine.points.concat([point.x, point.y]);
-    setLocalLines(localLines.slice(0, -1).concat(lastLine));
+
+    setLines((prevLines) => {
+      const lastLine = { ...prevLines[prevLines.length - 1] };
+      lastLine.points = lastLine.points.concat([point.x, point.y]);
+      const updated = prevLines.slice(0, -1).concat(lastLine);
+      return updated;
+    });
   };
 
   const handleMouseUp = () => {
     isDrawing.current = false;
 
+    // Send only the last line drawn
+    const lastLine = lines[lines.length - 1];
+    if (!lastLine) return;
+
     const payload = {
       drawing_id: 'd_456',
-      strokes: localLines.slice(-1), // send only the last stroke
+      strokes: [lastLine],
       version: 3,
       updated_at: new Date().toISOString(),
     };
 
-    console.log('sending drawing:', payload);
+    console.log('🖊️ sending drawing:', payload);
     socket.emit('drawing:update', payload);
   };
 
-  // --- subscribe to backend drawing updates ---
+  // Listen for incoming lines from backend
   useEffect(() => {
     socket.on('drawing:broadcast', (data) => {
-      console.log('📩 Received from backend:', data);
       if (data?.strokes?.length) {
-        setRemoteLines((prev) => [...prev, ...data.strokes]);
+        console.log('📩 received from backend:', data);
+        setLines((prev) => [...prev, ...data.strokes]);
       }
     });
 
@@ -65,12 +71,11 @@ export default function DualCanvas() {
     };
   }, []);
 
-  // --- canvas dimensions ---
-  const canvasWidth = window.innerWidth / 2 - 20;
-  const canvasHeight = window.innerHeight - 60;
+  const canvasWidth = window.innerWidth - 40;
+  const canvasHeight = window.innerHeight - 100;
 
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-100">
+    <div className="flex flex-col items-center justify-center w-full h-screen bg-gray-100">
       {/* Palette */}
       <div className="flex items-center gap-3 p-3 bg-white shadow-md w-full justify-center">
         <input
@@ -88,40 +93,21 @@ export default function DualCanvas() {
         <span>{strokeWidth}px</span>
       </div>
 
-      {/* Canvases side by side */}
-      <div className="flex flex-col justify-center gap-4 p-2">
-        <span> Local drawing canvas </span>
-
+      {/* Shared Canvas */}
+      <div className="flex flex-col items-center p-4">
+        <span className="mb-2 font-semibold text-gray-700">
+          Shared Drawing Canvas (syncs with all connected clients)
+        </span>
         <Stage
           width={canvasWidth}
           height={canvasHeight}
           onMouseDown={handleMouseDown}
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
-          className="bg-white border border-black"
+          className="bg-white border-2 border-black rounded"
         >
           <Layer>
-            {localLines.map((line, i) => (
-              <Line
-                key={line.id || i}
-                points={line.points}
-                stroke={line.color}
-                strokeWidth={line.width}
-                lineCap="round"
-                lineJoin="round"
-              />
-            ))}
-          </Layer>
-        </Stage>
-
-        <span> Remote canvas </span>
-        <Stage
-          width={canvasWidth}
-          height={canvasHeight}
-          className="bg-white border border-black"
-        >
-          <Layer>
-            {remoteLines.map((line, i) => (
+            {lines.map((line, i) => (
               <Line
                 key={line.id || i}
                 points={line.points}

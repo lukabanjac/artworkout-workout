@@ -7,7 +7,7 @@
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend start:dev",
-    "dev": "concurrently -n FRONTEND,BACKEND -c blue,green \"pnpm dev:frontend\" \"pnpm dev:backend\""
+    "dev": "concurrently -n 1-FRONTEND,2-FRONTEND,BACKEND -c blue,blue,green \"pnpm dev:frontend --port 3001\" \"pnpm dev:frontend --port 3002\" \"pnpm dev:backend\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
